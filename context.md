@@ -17,7 +17,6 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 ## 실행
 
 
-
 - `npm install` 후 루트에 `.env` 복사(`.env.example` 참고)
 
 - `./stock_number.txt` 에 감시할 **종목코드**를 쉼표·공백·줄바꿈으로 나열 (6글자 단축코드, 숫자만 또는 예: `00680K`)
@@ -26,23 +25,11 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 
 
-### 종목코드가 KIS에서 조회되는지 점검
-
-
-
-- `npm run verify:codes` — `stock_number.txt` 각 코드에 대해 **주식 현재가 시세** REST를 호출해 성공 여부를 출력. 호출 한도 때문에 기본 호출 간격은 `--delay=600`(ms) 등으로 조절한다.
+### 선택 스크립트
 
 - `npm run build:names` — 같은 코드 목록으로 KIS **종목 검색(search-info)** 를 돌려 **`stock_names.txt`** 를 자동 작성. 미조회 코드는 파일에 `# 미조회: 코드` 주석 줄로 남김. `--delay`(기본 250ms)로 호출 한도 조절.
 
-- `npm run discord:test` — `.env`의 `DISCORD_WEBHOOK_URL` 로 테스트 알림 1건 전송.
-
-- `npm run simulate:pgm` — 장 외에 WS와 비슷한 `H0NXPGM0` 한 줄 형식을 만들어 **감시 등록·피크 갱신·50% 알림** 로직만 실행 (웹훅이 없으면 콘솔만).
-
-- `npm run simulate:pgm:decline` — 위와 동일하되 **「최고값 대비 절반 이하로 감소」** 할 때 나는 알림만 2티크로 검증.
-
-- `npm run simulate:pgm:live` — **프로세스를 계속 돌리며** 랜덤 매도량 틱을 넣음. 기본은 **`stock_number.txt` 종목 풀**(실전과 같이 `stock_names.txt` 매핑 가능). 가짜 코드만 쓰려면 `--pool=synthetic`. 기본 **120초마다 감시 맵을 비워** 반복 알림을 볼 수 있음(실전에는 없음). `Ctrl+C` 종료.
-
-- 한 건만: `node src/simulateProgramTrade.js --line="0|H0NXPGM0|001|종목코드^시간^수량"`.
+- `npm run simulate:pgm:live` — **프로세스를 계속 돌리며** 랜덤 매도량 틱을 넣음. 기본은 **`stock_number.txt` 종목 풀**(실전과 같이 `stock_names.txt` 매핑 가능). 가짜 코드만 쓰려면 `--pool=synthetic`. 틱 속도는 `--interval-ms`(기본 400ms, 늘리면 디스코드·콘솔 빈도 감소). 기본 **120초마다 감시 맵을 비워** 반복 알림을 볼 수 있음(실전에는 없음). `Ctrl+C` 종료.
 
 ## 데이터·환경 변수 (중요만)
 
@@ -60,17 +47,13 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 | `DISCORD_WEBHOOK_URL` | 알림 전송용(로컬 `.env`에만 두고 **커밋하지 않을 것**) |
 
-| `PRELOAD_STOCK_NAMES` | (선택) `1`이면 시작 시 `stock_number.txt` 종목을 KIS `search-info`로 순회해 **이름 캐시**를 미리 채움(목록 많으면 수 분·호출 한도 주의). |
+| `STOCK_NAMES_FILE` | (선택) `종목코드<TAB>종목명` 목록 파일 경로. 기본 `./stock_names.txt`. 실행 중 표시 이름은 이 파일만 사용(수동 갱신·`npm run build:names`). |
 
-| `PRELOAD_STOCK_DELAY_MS` | 선로드 시 요청 간격(ms). 기본 250 |
-
-| `STOCK_NAMES_FILE` | (선택) `종목코드<TAB>종목명` 목록 파일 경로. 기본 `./stock_names.txt` |
-
-| `token.json` | access_token 재사용(검증 스크립트 등 REST 호출 시) |
+| `token.json` | access_token 재사용(`npm run build:names` 등 REST 호출 시) |
 
 | `./stock_number.txt` | 감시할 종목코드 목록 |
 
-| `./stock_names.txt` | (선택) 코드→한글명. 있으면 **KIS보다 우선** (`stock_names.example.txt` 참고) |
+| `./stock_names.txt` | (선택) 코드→한글명만 믿음. 없으면 알림 표기에 **코드만** (`stock_names.example.txt` 참고) |
 
 
 
@@ -86,11 +69,9 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 2. `loadStockCodesFromTxt()` (`stockNumberTxt.js`) 가 `./stock_number.txt` 에서 종목코드 목록 로드 (순서 유지, 동일 코드 중복 제거)
 
-3. `./stock_names.txt`(`STOCK_NAMES_FILE`)가 있으면 `stockNamesTxt.js`·`hydrateNamesFromLocalFile` 로 **로컬 이름**을 메모리에 올림 (**KIS 검색보다 우선**).
+3. `./stock_names.txt`(`STOCK_NAMES_FILE`)가 있으면 `stockNamesTxt.js`·`hydrateNamesFromLocalFile` 로 **로컬 이름만** 메모리에 올림. 빠진 코드는 이름 없음(코드만 표시).
 
-4. (선택) `PRELOAD_STOCK_NAMES=1` 이면 파일에 없는 코드만 KIS `search-info` 로 순회해 캐시를 채운다.
-
-5. `connectRealtimeProgramTrade({ approvalKey, stockList })` (`realtimeProgramTrade.js`)
+4. `connectRealtimeProgramTrade({ approvalKey, stockList })` (`realtimeProgramTrade.js`)
 
    - `KIS_WS_URL` 로 WebSocket 연결
 
@@ -118,7 +99,7 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 - **감시 등록**: `sellQty >= 100000` 이고 해당 종목이 아직 `watchMap`에 없으면 등록하고, Discord로 **`🔭 [감시 시작]`** 형태 메시지를 보낸다.
 
-- **종목 줄 표기**: Discord·콘솔 알림의 `종목:` 은 **`stock_names.txt`에 한글명이 있으면 그 이름만** 표시. 파일에 없으면 KIS **`search-info`**로 조회한 이름만 쓰고, 둘 다 없으면 **종목코드**만 표시.
+- **종목 줄 표기**: Discord·콘솔 알림의 `종목:` 은 **`stock_names.txt`에 한글명이 있으면 그 이름만** 표시. 없으면 **종목코드**만 표시(KIS 이름 조회는 `npm run build:names` 때만 사용).
 
 - **조건 알림 (Discord)**: **감시 중 최고 `sellQty` 대비 현재값이 50% 이하** (`sellQty <= highestSellQty * 0.5`)일 때만 추가로 알리며, 종목당 **최초 한 번** (`alerted50`). **`⚠️ [알림] …`** 등 본문 + 프로그램매도 수량 **(최고값) -> (현재값)**.
 
@@ -145,7 +126,7 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 - 실시간 프로그램매매 채널은 **환경에 따라 모의 미지원**일 수 있음.
 
-- `npm run verify:codes`·`npm run build:names` 호출 시 **초당 한도**(예: `EGW00201`)에 걸리면 `--delay` 를 늘린다.
+- `npm run build:names` 호출 시 **초당 한도**(예: `EGW00201`)에 걸리면 `--delay` 를 늘린다.
 
 - WebSocket **구독 종목 수 제한**이 있을 수 있음.
 

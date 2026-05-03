@@ -5,7 +5,7 @@
  *   npm run simulate:pgm:live
  *
  * 옵션 (--name=value):
- *   --interval-ms=1500   틱 간격(기본 1500ms)
+ *   --interval-ms=400    틱 간격(기본 400ms, 짧을수록 조건 충족이 잦음·디스코드도 잦음)
  *   --pool=watchlist|synthetic
  *                         watchlist: `stock_number.txt` 종목만 사용(기본) → `stock_names.txt`와 맞추면 한글명 표시
  *                         synthetic: 가짜 코드 풀(799100~) — 이름 매핑 없음
@@ -67,7 +67,8 @@ function resolveCodePool(poolModeRaw, poolSize) {
 }
 
 function main() {
-  const intervalMs = Number.parseInt(parseArg("--interval-ms", "1500"), 10) || 1500;
+  const intervalMs =
+    Number.parseInt(parseArg("--interval-ms", "400"), 10) || 400;
   const poolSize = Number.parseInt(parseArg("--pool-size", "12"), 10) || 12;
   const resetSec = Number.parseFloat(parseArg("--reset-sec", "120"), 10);
   const poolModeRaw = parseArg("--pool", "watchlist");

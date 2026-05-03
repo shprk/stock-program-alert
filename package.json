@@ -5,11 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
-    "verify:codes": "node src/verifyStockNumbers.js",
     "build:names": "node src/buildStockNamesFile.js",
-    "discord:test": "node src/testDiscordWebhook.js",
-    "simulate:pgm": "node src/simulateProgramTrade.js",
-    "simulate:pgm:decline": "node src/simulateProgramTrade.js --scenario=decline",
     "simulate:pgm:live": "node src/simulateProgramTradeLive.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

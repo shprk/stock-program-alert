@@ -124,7 +124,8 @@ export async function fetchStockNameFromKis(stockCode) {
 }
 
 /**
- * `stock_names.txt` 가 있으면 우선, 없으면 KIS search-info.
+ * `stock_names.txt`(및 시작 시 채워 둔 캐시)만 사용. 없으면 빈 문자열.
+ * KIS 종목명 조회는 `npm run build:names` 용 `fetchStockNameFromKis` 에만 두고, 런타임에서는 호출하지 않음.
  *
  * @param {string} stockCode
  */
@@ -142,13 +143,7 @@ export async function resolveStockNameForCode(stockCode) {
     return fromTxt;
   }
 
-  const name = await fetchStockNameFromKis(key);
-
-  if (name) {
-    nameCache.set(key, name);
-  }
-
-  return name;
+  return "";
 }
 
 /**
@@ -160,10 +155,6 @@ export async function stockLabelForAlert(stockCode) {
   const code = String(stockCode).trim();
   const name = await resolveStockNameForCode(code);
   return name ? name : code;
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 /**
@@ -187,37 +178,4 @@ export function hydrateNamesFromLocalFile(codes) {
   }
 
   return n;
-}
-
-/**
- * `stock_number.txt` 로딩 후 미리 이름을 채울 때 (선택).
- * `PRELOAD_STOCK_NAMES=1` 일 때 `index.js`에서 호출.
- * 이미 `stock_names.txt` 로 채워진 코드는 건너뜀.
- *
- * @param {string[]} codes
- * @param {{ delayMs?: number }} [opts]
- */
-export async function preloadStockLabels(codes, opts = {}) {
-  const delayMs = opts.delayMs ?? 250;
-
-  let ok = 0;
-  let miss = 0;
-
-  for (const c of codes) {
-    const key = String(c).trim().toUpperCase();
-
-    if (nameCache.has(key)) {
-      ok += 1;
-      continue;
-    }
-
-    const name = await resolveStockNameForCode(c);
-
-    if (name) ok += 1;
-    else miss += 1;
-
-    await sleep(delayMs);
-  }
-
-  return { ok, miss, total: codes.length };
 }
