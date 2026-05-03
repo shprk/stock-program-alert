@@ -6,6 +6,12 @@ dotenv.config();
 
 const TOKEN_FILE = "token.json";
 
+function kisBaseUrl() {
+  let b = String(process.env.KIS_BASE_URL ?? "").trim();
+  if (b.endsWith("/")) b = b.slice(0, -1);
+  return b;
+}
+
 // function readSavedToken() {
 //   if (!fs.existsSync(TOKEN_FILE)) return null;
 
@@ -101,7 +107,7 @@ export async function getAccessToken() {
   }
 
   const response = await axios.post(
-    `${process.env.KIS_BASE_URL}/oauth2/tokenP`,
+    `${kisBaseUrl()}/oauth2/tokenP`,
     {
       grant_type: "client_credentials",
       appkey: process.env.KIS_APP_KEY,
@@ -150,7 +156,7 @@ export async function getAccessToken() {
 
 export async function getApprovalKey() {
   const response = await axios.post(
-    `${process.env.KIS_BASE_URL}/oauth2/Approval`,
+    `${kisBaseUrl()}/oauth2/Approval`,
     {
       grant_type: "client_credentials",
       appkey: process.env.KIS_APP_KEY,

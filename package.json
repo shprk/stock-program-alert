@@ -5,6 +5,12 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
+    "verify:codes": "node src/verifyStockNumbers.js",
+    "build:names": "node src/buildStockNamesFile.js",
+    "discord:test": "node src/testDiscordWebhook.js",
+    "simulate:pgm": "node src/simulateProgramTrade.js",
+    "simulate:pgm:decline": "node src/simulateProgramTrade.js --scenario=decline",
+    "simulate:pgm:live": "node src/simulateProgramTradeLive.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,9 +19,7 @@
   "description": "",
   "dependencies": {
     "axios": "^1.15.2",
-    "csv-parser": "^3.2.0",
     "dotenv": "^17.4.2",
-    "ws": "^8.20.0",
-    "xlsx": "^0.18.5"
+    "ws": "^8.20.0"
   }
 }
