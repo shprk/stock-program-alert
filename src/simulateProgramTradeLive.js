@@ -1,5 +1,5 @@
 /**
- * 운영처럼 프로세스를 유지한 채 랜덤 프로그램매도 수량 틱을 넣고,
+ * 운영처럼 프로세스를 유지한 채 랜덤 프로그램순매수 수량 틱을 넣고,
  * 실전과 같은 `handleProgramTrade`·Discord 경로를 반복 검증한다.
  *
  *   npm run simulate:pgm:live
@@ -18,6 +18,7 @@ import dotenv from "dotenv";
 import { hydrateNamesFromLocalFile } from "./kisStockLookup.js";
 import {
   dispatchProgramTradeSocketText,
+  getProgramTradeTrId,
   resetProgramTradeSimulationState,
 } from "./realtimeProgramTrade.js";
 import { stockNamesTxtPathHint } from "./stockNamesTxt.js";
@@ -30,8 +31,10 @@ function parseArg(name, fallback) {
   return hit ? hit.slice(name.length + 1) : fallback;
 }
 
-function line(code, tradeTime, sellQty) {
-  return `0|H0NXPGM0|001|${code}^${tradeTime}^${sellQty}`;
+function line(code, tradeTime, netBuyQty) {
+  // payload 필드(실전과 파싱 인덱스 호환):
+  // 0=종목코드, 1=체결시각, 2~5는 더미 자리(SELN/SHNU), 6=NTBY_CNQN(순매수체결량)
+  return `0|${getProgramTradeTrId()}|001|${code}^${tradeTime}^0^0^0^0^${netBuyQty}`;
 }
 
 function randomInt(lo, hi) {
@@ -85,7 +88,7 @@ function main() {
         : `\`stock_number.txt\` 없음 → 가짜 풀로 대체 (${codes[0]}~, ${codes.length}개)`;
 
   console.log(`[simulate:pgm:live] (${mode}) Ctrl+C 종료
-· 틱: ${intervalMs}ms마다 종목 무작위, 매도량 랜덤(종종 10만↑ / 종종 피크 대비 반토막 구간 포함)
+· 틱: ${intervalMs}ms마다 종목 무작위, 순매수량 랜덤(종종 10만↑ / 종종 피크 대비 반토막 구간 포함)
 · 종목 풀: ${poolDesc}`);
   console.log(
     resetSec > 0

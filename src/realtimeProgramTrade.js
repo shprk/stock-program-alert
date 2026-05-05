@@ -1,6 +1,25 @@
 import WebSocket from "ws";
 import axios from "axios";
+import dotenv from "dotenv";
 import { stockLabelForAlert } from "./kisStockLookup.js";
+
+dotenv.config();
+
+/**
+ * 국내주식 실시간 프로그램매매 TR_ID (한국투자증권 스펙).
+ * - H0STPGM0: KRX (일반 거래소) — 대부분의 종목
+ * - H0NXPGM0: NXT 단독
+ * - H0UNPGM0: 통합
+ * @see https://github.com/koreainvestment/open-trading-api (domestic_stock_functions_ws.py)
+ */
+export function getProgramTradeTrId() {
+  const id = (
+    process.env.KIS_PGM_TR_ID ||
+    process.env.KIS_PROGRAM_TRADE_TR_ID ||
+    "H0STPGM0"
+  ).trim();
+  return id || "H0STPGM0";
+}
 
 // 감시 대상 저장
 const watchMap = new Map();
@@ -49,39 +68,43 @@ async function sendDiscordAlert(message) {
 function parseProgramTradeMessage(message) {
   const [, trId, , payload] = message.split("|");
 
-  if (trId !== "H0NXPGM0") return null;
+  if (trId !== getProgramTradeTrId()) return null;
 
-  const [
-    stockCode,
-    tradeTime,
-    sellQty,
-  ] = payload.split("^");
+  // KIS 스펙(대략적인 payload 필드):
+  // 0=종목코드, 1=체결시각, 6=ntby_cnqn(순매수체결량)
+  const parts = payload.split("^");
+  const stockCode = parts[0];
+  const tradeTime = parts[1];
+  const netBuyQty = Number(parts[6]);
+
+  // 필드 누락/파싱 실패면 잘못된 비교를 막기 위해 무시
+  if (!Number.isFinite(netBuyQty)) return null;
 
   return {
     stockCode,
     tradeTime,
-    sellQty: Number(sellQty),
+    netBuyQty,
   };
 
 }
 
 async function handleProgramTrade(parsed) {
-  const { stockCode, sellQty } = parsed;
+  const { stockCode, netBuyQty } = parsed;
 
   // 1. 감시 대상 등록 (10만주 이상)
-  if (sellQty >= 100000 && !watchMap.has(stockCode)) {
+  if (netBuyQty >= 100000 && !watchMap.has(stockCode)) {
     const displayLabel = await stockLabelForAlert(stockCode);
 
     watchMap.set(stockCode, {
       stockCode,
       displayLabel,
-      highestSellQty: sellQty,
+      highestNetBuyQty: netBuyQty,
       alerted50: false,
     });
 
     const message = `🔭 [감시 시작]
 종목: ${displayLabel}
-프로그램매도 수량: ${sellQty}`;
+순매수체결량(프로그램): ${netBuyQty}`;
 
     console.log(message);
     await sendDiscordAlert(message);
@@ -92,21 +115,21 @@ async function handleProgramTrade(parsed) {
   if (!stock) return;
 
   // 2. 최고값 갱신
-  if (sellQty > stock.highestSellQty) {
-    stock.highestSellQty = sellQty;
+  if (netBuyQty > stock.highestNetBuyQty) {
+    stock.highestNetBuyQty = netBuyQty;
   }
 
   // 최고값 대비 50% 감소 (Discord 알림)
   if (
-    sellQty <= stock.highestSellQty * 0.5 &&
+    netBuyQty <= stock.highestNetBuyQty * 0.5 &&
     !stock.alerted50
   ) {
-    const peak = stock.highestSellQty;
+    const peak = stock.highestNetBuyQty;
     const label = stock.displayLabel ?? (await stockLabelForAlert(stockCode));
 
     const alertMsg = `⚠️ [알림] 최고 대비 50% 감소
 종목: ${label}
-프로그램매도 수량: ${peak} -> ${sellQty}`;
+순매수체결량(프로그램): ${peak} -> ${netBuyQty}`;
 
     console.log(alertMsg);
     await sendDiscordAlert(alertMsg);
@@ -150,7 +173,11 @@ export function connectRealtimeProgramTrade({ approvalKey, stockList }) {
   const ws = new WebSocket(process.env.KIS_WS_URL);
 
   ws.on("open", () => {
+    const trId = getProgramTradeTrId();
     console.log("WebSocket 연결 성공");
+    console.log(
+      `프로그램매매 TR: ${trId} · 구독 종목 ${stockList.length}개 (KIS_PGM_TR_ID로 변경 가능)`
+    );
 
     stockList.forEach(({ stockCode }) => {
       ws.send(
@@ -162,7 +189,7 @@ export function connectRealtimeProgramTrade({ approvalKey, stockList }) {
           },
           body: {
             input: {
-              tr_id: "H0NXPGM0",
+              tr_id: trId,
               tr_key: stockCode,
             },
           },
