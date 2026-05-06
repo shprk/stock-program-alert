@@ -10,7 +10,7 @@ _Last updated: 2026-05-03_
 
 
 
-Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램매매(WebSocket)** 를 쓰고, **`stock_number.txt`에 적어 둔 종목코드 목록만** 구독한 뒤, **프로그램매도 잔량이 일정 패턴일 때 Discord Webhook으로 알림**을 보내는 프로그램이다.
+Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램매매(WebSocket)** 를 쓰고, **`stock_number.txt`에 적어 둔 종목코드 목록만** 구독한 뒤, **프로그램 순매수체결량(`NTBY_CNQN`)이 일정 패턴일 때 Discord Webhook으로 알림**을 보내는 프로그램이다. (`SELN_CNQN` 등 누적 매도체결량은 사용하지 않음.)
 
 
 
@@ -29,7 +29,7 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 - `npm run build:names` — 같은 코드 목록으로 KIS **종목 검색(search-info)** 를 돌려 **`stock_names.txt`** 를 자동 작성. 미조회 코드는 파일에 `# 미조회: 코드` 주석 줄로 남김. `--delay`(기본 250ms)로 호출 한도 조절.
 
-- `npm run simulate:pgm:live` — **프로세스를 계속 돌리며** 랜덤 매도량 틱을 넣음. 기본은 **`stock_number.txt` 종목 풀**(실전과 같이 `stock_names.txt` 매핑 가능). 가짜 코드만 쓰려면 `--pool=synthetic`. 틱 속도는 `--interval-ms`(기본 400ms, 늘리면 디스코드·콘솔 빈도 감소). 기본 **120초마다 감시 맵을 비워** 반복 알림을 볼 수 있음(실전에는 없음). `Ctrl+C` 종료.
+- `npm run simulate:pgm:live` — **프로세스를 계속 돌리며** 랜덤 순매수체결량 틱을 넣음. 기본은 **`stock_number.txt` 종목 풀**(실전과 같이 `stock_names.txt` 매핑 가능). 가짜 코드만 쓰려면 `--pool=synthetic`. 틱 속도는 `--interval-ms`(기본 400ms, 늘리면 디스코드·콘솔 빈도 감소). 기본 **120초마다 감시 맵을 비워** 반복 알림을 볼 수 있음(실전에는 없음). `Ctrl+C` 종료.
 
 ## 데이터·환경 변수 (중요만)
 
@@ -89,7 +89,7 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 - `|` 로 나누고, payload는 `^` 로 필드를 나눈다.
 
-- 현재 로직에서는 **순매수체결량 후보 필드**(코드 상 변수명 `netBuyQty`, NTBY_CNQN) 기준으로 임계치·비율을 판단한다.
+- 현재 로직에서는 **순매수체결량 후보 필드**(코드 상 변수명 `netBuyQty`, `NTBY_CNQN`) 기준으로 임계치·비율을 판단한다. **`SELN_CNQN`(누적 매도체결량)·호가잔량 계열은 사용하지 않는다.**
 
 
 

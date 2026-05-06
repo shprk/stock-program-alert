@@ -33,7 +33,7 @@ function parseArg(name, fallback) {
 
 function line(code, tradeTime, netBuyQty) {
   // payload 필드(실전과 파싱 인덱스 호환):
-  // 0=종목코드, 1=체결시각, 2~5는 더미 자리(SELN/SHNU), 6=NTBY_CNQN(순매수체결량)
+  // 0=종목코드, 1=체결시각, 2~5=0(미사용 더미·KIS 필드 자리 맞춤), 6=NTBY_CNQN(순매수체결량)
   return `0|${getProgramTradeTrId()}|001|${code}^${tradeTime}^0^0^0^0^${netBuyQty}`;
 }
 

@@ -71,7 +71,7 @@ function parseProgramTradeMessage(message) {
   if (trId !== getProgramTradeTrId()) return null;
 
   // KIS 스펙(대략적인 payload 필드):
-  // 0=종목코드, 1=체결시각, 6=ntby_cnqn(순매수체결량)
+  // 0=종목코드, 1=체결시각, 6=ntby_cnqn(순매수체결량) — 로직에는 이 값만 사용(SELN_CNQN 등 매도체결량은 미사용).
   const parts = payload.split("^");
   const stockCode = parts[0];
   const tradeTime = parts[1];
