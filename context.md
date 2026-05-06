@@ -10,7 +10,7 @@ _Last updated: 2026-05-03_
 
 
 
-Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램매매(WebSocket)** 를 쓰고, **`stock_number.txt`에 적어 둔 종목코드 목록만** 구독한 뒤, **프로그램 순매수체결량(`NTBY_CNQN`)이 일정 패턴일 때 Discord Webhook으로 알림**을 보내는 프로그램이다. (`SELN_CNQN` 등 누적 매도체결량은 사용하지 않음.)
+Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램매매(WebSocket)** 를 쓰고, **`stock_number.txt`에 적어 둔 종목코드 목록만** 구독한 뒤, **1차(매도체결량 `SELN_CNQN`) + 2차(순매수체결량 `NTBY_CNQN`) 조건이 맞을 때 Discord Webhook 알림**을 보내는 프로그램이다.
 
 
 
@@ -29,7 +29,7 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 - `npm run build:names` — 같은 코드 목록으로 KIS **종목 검색(search-info)** 를 돌려 **`stock_names.txt`** 를 자동 작성. 미조회 코드는 파일에 `# 미조회: 코드` 주석 줄로 남김. `--delay`(기본 250ms)로 호출 한도 조절.
 
-- `npm run simulate:pgm:live` — **프로세스를 계속 돌리며** 랜덤 순매수체결량 틱을 넣음. 기본은 **`stock_number.txt` 종목 풀**(실전과 같이 `stock_names.txt` 매핑 가능). 가짜 코드만 쓰려면 `--pool=synthetic`. 틱 속도는 `--interval-ms`(기본 400ms, 늘리면 디스코드·콘솔 빈도 감소). 기본 **120초마다 감시 맵을 비워** 반복 알림을 볼 수 있음(실전에는 없음). `Ctrl+C` 종료.
+- `npm run simulate:pgm:live` — **프로세스를 계속 돌리며** 랜덤 매도체결량(`SELN`)·순매수체결량(`NTBY`) 틱을 넣음. 기본은 **`stock_number.txt` 종목 풀**(실전과 같이 `stock_names.txt` 매핑 가능). 가짜 코드만 쓰려면 `--pool=synthetic`. 틱 속도는 `--interval-ms`(기본 400ms, 늘리면 디스코드·콘솔 빈도 감소). 기본 **120초마다 감시 맵을 비워** 반복 알림을 볼 수 있음(실전에는 없음). `Ctrl+C` 종료.
 
 ## 데이터·환경 변수 (중요만)
 
@@ -89,7 +89,7 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 - `|` 로 나누고, payload는 `^` 로 필드를 나눈다.
 
-- 현재 로직에서는 **순매수체결량 후보 필드**(코드 상 변수명 `netBuyQty`, `NTBY_CNQN`) 기준으로 임계치·비율을 판단한다. **`SELN_CNQN`(누적 매도체결량)·호가잔량 계열은 사용하지 않는다.**
+- 현재 로직에서는 **1차는 `SELN_CNQN`(매도체결량, 변수명 `sellQty`)**, **2차는 `NTBY_CNQN`(순매수체결량, 변수명 `netBuyQty`)** 기준으로 판단한다.
 
 
 
@@ -97,11 +97,11 @@ Node.js 기반으로 **한국투자증권 Open API**와 **실시간 프로그램
 
 
 
-- **감시 등록**: `netBuyQty >= 100000` 이고 해당 종목이 아직 `watchMap`에 없으면 등록하고, Discord로 **`🔭 [감시 시작]`** 형태 메시지를 보낸다.
+- **감시 등록(1차)**: `sellQty >= 100000` 이고 해당 종목이 아직 `watchMap`에 없으면 등록하고, Discord로 **`🔭 [감시 시작]`** 형태 메시지를 보낸다.
 
 - **종목 줄 표기**: Discord·콘솔 알림의 `종목:` 은 **`stock_names.txt`에 한글명이 있으면 그 이름만** 표시. 없으면 **종목코드**만 표시(KIS 이름 조회는 `npm run build:names` 때만 사용).
 
-- **조건 알림 (Discord)**: **감시 중 최고 `netBuyQty` 대비 현재값이 50% 이하** (`netBuyQty <= highestNetBuyQty * 0.5`)일 때만 추가로 알리며, 종목당 **최초 한 번** (`alerted50`). **`⚠️ [알림] …`** 등 본문 + 순매수체결량(프로그램) **(최고값) -> (현재값)**.
+- **조건 알림 (Discord, 2차)**: 감시 중 `netBuyQty`의 **최저 음수값**(=`lowestNetBuyQty`, 순매도 강도 피크)을 기준으로 현재값이 절반선 이상 회복했을 때 (`netBuyQty >= lowestNetBuyQty * 0.5`) 추가 알림을 보낸다. 종목당 **최초 한 번** (`alerted50`). 본문에는 순매수체결량(`NTBY_CNQN`)의 **(최저값) -> (현재값)** 를 표시한다.
 
 - **Discord 포맷**: `sendDiscordAlert`에서 본문 위·아래에 **구분선(▬)** 과 **KST 시각** 줄을 붙여, 연속 알림이 채팅에 쌓여도 눈으로 끊어 읽기 쉽게 한다. (콘솔 로그는 기존처럼 테두리 없음.)
 

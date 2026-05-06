@@ -41,7 +41,7 @@ function frameDiscordNotice(inner) {
 
   const bar = "▬".repeat(28);
 
-  return `${bar}\n📌 **${t}** (KST)\n\n${String(inner).trim()}\n\n${bar}`;
+  return `${bar}\n▫️ **${t}** (KST)\n\n${String(inner).trim()}\n\n${bar}`;
 }
 
 async function sendDiscordAlert(message) {
@@ -71,40 +71,43 @@ function parseProgramTradeMessage(message) {
   if (trId !== getProgramTradeTrId()) return null;
 
   // KIS 스펙(대략적인 payload 필드):
-  // 0=종목코드, 1=체결시각, 6=ntby_cnqn(순매수체결량) — 로직에는 이 값만 사용(SELN_CNQN 등 매도체결량은 미사용).
+  // 0=종목코드, 1=체결시각, 2=seln_cnqn(매도체결량), 6=ntby_cnqn(순매수체결량)
   const parts = payload.split("^");
   const stockCode = parts[0];
   const tradeTime = parts[1];
+  const sellQty = Number(parts[2]);
   const netBuyQty = Number(parts[6]);
 
   // 필드 누락/파싱 실패면 잘못된 비교를 막기 위해 무시
-  if (!Number.isFinite(netBuyQty)) return null;
+  if (!Number.isFinite(sellQty) || !Number.isFinite(netBuyQty)) return null;
 
   return {
     stockCode,
     tradeTime,
+    sellQty,
     netBuyQty,
   };
 
 }
 
 async function handleProgramTrade(parsed) {
-  const { stockCode, netBuyQty } = parsed;
+  const { stockCode, sellQty, netBuyQty } = parsed;
 
   // 1. 감시 대상 등록 (10만주 이상)
-  if (netBuyQty >= 100000 && !watchMap.has(stockCode)) {
+  if (sellQty >= 100000 && !watchMap.has(stockCode)) {
     const displayLabel = await stockLabelForAlert(stockCode);
 
     watchMap.set(stockCode, {
       stockCode,
       displayLabel,
-      highestNetBuyQty: netBuyQty,
+      lowestNetBuyQty: netBuyQty,
+      entrySellQty: sellQty,
       alerted50: false,
     });
 
-    const message = `🔭 [감시 시작]
-종목: ${displayLabel}
-순매수체결량(프로그램): ${netBuyQty}`;
+    const message = `[감시 시작] ${displayLabel}: 프로그램매도 ${sellQty.toLocaleString(
+      "ko-KR"
+    )}주 기록`;
 
     console.log(message);
     await sendDiscordAlert(message);
@@ -114,22 +117,27 @@ async function handleProgramTrade(parsed) {
   const stock = watchMap.get(stockCode);
   if (!stock) return;
 
-  // 2. 최고값 갱신
-  if (netBuyQty > stock.highestNetBuyQty) {
-    stock.highestNetBuyQty = netBuyQty;
+  // 2. 최저값(가장 음수인 순매수체결량) 갱신 = 순매도 강도 피크
+  if (netBuyQty < stock.lowestNetBuyQty) {
+    stock.lowestNetBuyQty = netBuyQty;
   }
 
-  // 최고값 대비 50% 감소 (Discord 알림)
+  // 순매도 강도 피크(최저 음수) 대비 50% 완화(0에 가까워짐) 알림
   if (
-    netBuyQty <= stock.highestNetBuyQty * 0.5 &&
+    stock.lowestNetBuyQty < 0 &&
+    netBuyQty >= stock.lowestNetBuyQty * 0.5 &&
     !stock.alerted50
   ) {
-    const peak = stock.highestNetBuyQty;
-    const label = stock.displayLabel ?? (await stockLabelForAlert(stockCode));
+    const peak = stock.lowestNetBuyQty;
+    const stockName = stock.displayLabel ?? (await stockLabelForAlert(stockCode));
+    const peakNetSellAbs = Math.abs(peak);
+    const currentNetSellAbs = Math.abs(netBuyQty);
 
-    const alertMsg = `⚠️ [알림] 최고 대비 50% 감소
-종목: ${label}
-순매수체결량(프로그램): ${peak} -> ${netBuyQty}`;
+    const alertMsg = `🚨 [프로그램 매매 알림]
+종목명: ${stockName} (${stockCode})
+상태: 매도세 고점 대비 50% 하락
+피크 순매도: ${peakNetSellAbs}주
+현재 순매도: ${currentNetSellAbs}주`;
 
     console.log(alertMsg);
     await sendDiscordAlert(alertMsg);
