@@ -71,43 +71,40 @@ function parseProgramTradeMessage(message) {
   if (trId !== getProgramTradeTrId()) return null;
 
   // KIS 스펙(대략적인 payload 필드):
-  // 0=종목코드, 1=체결시각, 2=seln_cnqn(매도체결량), 6=ntby_cnqn(순매수체결량)
+  // 0=종목코드, 1=체결시각, 6=ntby_cnqn(순매수체결량) — 로직은 NTBY만 사용
   const parts = payload.split("^");
   const stockCode = parts[0];
   const tradeTime = parts[1];
-  const sellQty = Number(parts[2]);
   const netBuyQty = Number(parts[6]);
 
   // 필드 누락/파싱 실패면 잘못된 비교를 막기 위해 무시
-  if (!Number.isFinite(sellQty) || !Number.isFinite(netBuyQty)) return null;
+  if (!Number.isFinite(netBuyQty)) return null;
 
   return {
     stockCode,
     tradeTime,
-    sellQty,
     netBuyQty,
   };
 
 }
 
 async function handleProgramTrade(parsed) {
-  const { stockCode, sellQty, netBuyQty } = parsed;
+  const { stockCode, netBuyQty } = parsed;
 
-  // 1. 감시 대상 등록 (10만주 이상)
-  if (sellQty >= 100000 && !watchMap.has(stockCode)) {
+  // 1. 감시 대상 등록 (순매도 10만주 이상: NTBY <= -100000)
+  if (netBuyQty <= -100000 && !watchMap.has(stockCode)) {
     const displayLabel = await stockLabelForAlert(stockCode);
 
     watchMap.set(stockCode, {
       stockCode,
       displayLabel,
       lowestNetBuyQty: netBuyQty,
-      entrySellQty: sellQty,
       alerted50: false,
     });
 
-    const message = `[감시 시작] ${displayLabel}: 프로그램매도 ${sellQty.toLocaleString(
-      "ko-KR"
-    )}주 기록`;
+    const message = `[감시 시작] ${displayLabel}: 순매도 ${Math.abs(
+      netBuyQty
+    ).toLocaleString("ko-KR")}주 기록`;
 
     console.log(message);
     await sendDiscordAlert(message);

@@ -1,5 +1,5 @@
 /**
- * 운영처럼 프로세스를 유지한 채 랜덤 프로그램매도/순매수 수량 틱을 넣고,
+ * 운영처럼 프로세스를 유지한 채 랜덤 순매수체결량(`NTBY_CNQN`) 틱을 넣고,
  * 실전과 같은 `handleProgramTrade`·Discord 경로를 반복 검증한다.
  *
  *   npm run simulate:pgm:live
@@ -31,10 +31,10 @@ function parseArg(name, fallback) {
   return hit ? hit.slice(name.length + 1) : fallback;
 }
 
-function line(code, tradeTime, sellQty, netBuyQty) {
+function line(code, tradeTime, netBuyQty) {
   // payload 필드(실전과 파싱 인덱스 호환):
-  // 0=종목코드, 1=체결시각, 2=SELN_CNQN(매도체결량), 6=NTBY_CNQN(순매수체결량)
-  return `0|${getProgramTradeTrId()}|001|${code}^${tradeTime}^${sellQty}^0^0^0^${netBuyQty}`;
+  // 0=종목코드, 1=체결시각, 2~5=0(미사용 자리), 6=NTBY_CNQN(순매수체결량)
+  return `0|${getProgramTradeTrId()}|001|${code}^${tradeTime}^0^0^0^0^${netBuyQty}`;
 }
 
 function randomInt(lo, hi) {
@@ -88,7 +88,7 @@ function main() {
         : `\`stock_number.txt\` 없음 → 가짜 풀로 대체 (${codes[0]}~, ${codes.length}개)`;
 
   console.log(`[simulate:pgm:live] (${mode}) Ctrl+C 종료
-· 틱: ${intervalMs}ms마다 종목 무작위, 매도량·순매수량 랜덤(SELN 10만↑ 구간 + NTBY 음수 회복 구간 포함)
+· 틱: ${intervalMs}ms마다 종목 무작위, NTBY 랜덤(순매도 10만↑ 구간 + 회복 구간 포함)
 · 종목 풀: ${poolDesc}`);
   console.log(
     resetSec > 0
@@ -117,26 +117,20 @@ function main() {
     const code = codes[randomInt(0, codes.length - 1)];
     const tradeTime = pad6(90000 + (tick % 85000));
 
-    let sellQty;
-    const r = Math.random();
-    if (r < 0.22) sellQty = randomInt(110000, 280000);
-    else if (r < 0.38) sellQty = randomInt(15000, 85000);
-    else sellQty = randomInt(45000, 190000);
-
-    // NTBY는 음수(순매도 우위)와 0 근처 회복 구간이 섞이도록 생성
+    // NTBY: 순매도 10만 이상 구간 + 중간 음수 + 회복(0 근처·양수) 섞음
     let netBuyQty;
     const n = Math.random();
-    if (n < 0.45) netBuyQty = -randomInt(120000, 300000);
-    else if (n < 0.75) netBuyQty = -randomInt(20000, 100000);
-    else netBuyQty = randomInt(-15000, 70000);
+    if (n < 0.28) netBuyQty = -randomInt(120000, 350000);
+    else if (n < 0.48) netBuyQty = -randomInt(60000, 115000);
+    else if (n < 0.68) netBuyQty = -randomInt(5000, 55000);
+    else if (n < 0.88) netBuyQty = randomInt(-35000, 25000);
+    else netBuyQty = randomInt(5000, 90000);
 
-    const msg = line(code, tradeTime, sellQty, netBuyQty);
+    const msg = line(code, tradeTime, netBuyQty);
     try {
       await dispatchProgramTradeSocketText(msg);
       if (tick % 40 === 0) {
-        console.log(
-          `… tick ${tick} (마지막: ${code} SELN=${sellQty} NTBY=${netBuyQty})`
-        );
+        console.log(`… tick ${tick} (마지막: ${code} NTBY=${netBuyQty})`);
       }
     } catch (e) {
       console.error("[티크 오류]", e?.message ?? e);
