@@ -152,9 +152,14 @@ export async function dispatchProgramTradeSocketText(text) {
   return parsed;
 }
 
-/** 시뮬 전용: `watchMap` 초기화. 운영 경로에서 호출하지 않을 것. */
-export function resetProgramTradeSimulationState() {
+/** 운영·시뮬 공통: 감시 상태(`watchMap`)만 비웁니다. */
+export function clearProgramTradeWatchMap() {
   watchMap.clear();
+}
+
+/** 시뮬 레거시 이름. `clearProgramTradeWatchMap`과 동작이 같습니다. */
+export function resetProgramTradeSimulationState() {
+  clearProgramTradeWatchMap();
 }
 
 async function onRawSocketMessage(text) {
@@ -174,6 +179,9 @@ async function onRawSocketMessage(text) {
   }
 }
 
+/**
+ * @returns {{ disconnect: () => void }}
+ */
 export function connectRealtimeProgramTrade({ approvalKey, stockList }) {
   const ws = new WebSocket(process.env.KIS_WS_URL);
 
@@ -214,4 +222,14 @@ export function connectRealtimeProgramTrade({ approvalKey, stockList }) {
   ws.on("close", () => {
     console.log("WebSocket 종료");
   });
+
+  function disconnect() {
+    ws.removeAllListeners();
+    const { CONNECTING, OPEN } = WebSocket;
+    if (ws.readyState === CONNECTING || ws.readyState === OPEN) {
+      ws.close();
+    }
+  }
+
+  return { disconnect };
 }
