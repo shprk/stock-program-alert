@@ -44,7 +44,7 @@ function frameDiscordNotice(inner) {
   return `${bar}\n▫️ **${t}** (KST)\n\n${String(inner).trim()}\n\n${bar}`;
 }
 
-async function sendDiscordAlert(message) {
+export async function sendDiscordAlert(message) {
   const url = process.env.DISCORD_WEBHOOK_URL?.trim();
   if (!url) {
     if (!warnedMissingDiscordUrl) {

@@ -75,12 +75,12 @@ export function isMarketOpenAt(date) {
 }
 
 /**
- * KST 벽시계가 16:00 분에 해당하는지 (시·분 기준).
+ * KST 벽시계가 정규장 종료 확인용 15:40 분에 해당하는지 (시·분 기준).
  * 30초 폴링 등에서는 같은 분에 여러 번 true일 수 있으므로 호출측에서 날짜별 1회 가드 등이 필요할 수 있습니다.
  * @param {Date} date
  * @returns {boolean}
  */
 export function isMarketCloseTickAt(date) {
   const { hour, minute } = getKstWallClock(date);
-  return hour === 16 && minute === 0;
+  return hour === 15 && minute === 40;
 }
