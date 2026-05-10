@@ -23,6 +23,8 @@ async function main() {
   let closeRitualDoneYmd = /** @type {string | null} */ (null);
   /** @type {null | (() => void)} */
   let disconnectRealtime = null;
+  /** 장중 WS 연결을 시작할 때마다 1씩 올림 (늦게 도착한 과거 세션 close 가 무시되는지 판별) */
+  let realtimeConnectionCount = 0;
   let cachedApprovalKey = /** @type {string | null} */ (null);
   let lastIdleLogAt = 0;
 
@@ -99,9 +101,17 @@ async function main() {
         }
         cachedApprovalKey = approvalKey;
       }
+      const thisConnectAttemptId = ++realtimeConnectionCount;
       const { disconnect } = connectRealtimeProgramTrade({
         approvalKey,
         stockList,
+        onConnectionLost: () => {
+          if (thisConnectAttemptId !== realtimeConnectionCount) return;
+          disconnectRealtime = null;
+          console.log(
+            "[스케줄] WebSocket 예상 외 종료 — 다음 틱에서 장중이면 재연결"
+          );
+        },
       });
       disconnectRealtime = disconnect;
       console.log("[스케줄] 장중 프로그램 감시 WebSocket 연결");

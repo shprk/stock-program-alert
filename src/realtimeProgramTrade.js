@@ -180,9 +180,18 @@ async function onRawSocketMessage(text) {
 }
 
 /**
+ * @param {object} _
+ * @param {string} _.approvalKey
+ * @param {{ stockCode: string }[]} _.stockList
+ * @param {(() => void) | undefined} _.onConnectionLost
+ * 예상 외 종료(close) 시 호출. `disconnect()`로 끊을 때는 removeAllListeners 뒤 close 하므로 이 콜백은 타지 않음.
  * @returns {{ disconnect: () => void }}
  */
-export function connectRealtimeProgramTrade({ approvalKey, stockList }) {
+export function connectRealtimeProgramTrade({
+  approvalKey,
+  stockList,
+  onConnectionLost,
+}) {
   const ws = new WebSocket(process.env.KIS_WS_URL);
 
   ws.on("open", () => {
@@ -221,6 +230,11 @@ export function connectRealtimeProgramTrade({ approvalKey, stockList }) {
 
   ws.on("close", () => {
     console.log("WebSocket 종료");
+    try {
+      onConnectionLost?.();
+    } catch (cbErr) {
+      console.error("[onConnectionLost]", cbErr?.message ?? cbErr);
+    }
   });
 
   function disconnect() {
