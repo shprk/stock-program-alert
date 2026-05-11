@@ -2,6 +2,7 @@ import { getApprovalKey } from "./kisAuth.js";
 import { hydrateNamesFromLocalFile } from "./kisStockLookup.js";
 import { stockNamesTxtPathHint } from "./stockNamesTxt.js";
 import {
+  formatKstDateTime,
   getKstNow,
   getYmdKst,
   isMarketCloseTickAt,
@@ -26,6 +27,8 @@ async function main() {
   /** 장중 WS 연결을 시작할 때마다 1씩 올림 (늦게 도착한 과거 세션 close 가 무시되는지 판별) */
   let realtimeConnectionCount = 0;
   let cachedApprovalKey = /** @type {string | null} */ (null);
+  /** 해당 KST 영업일 ymd에 장중 첫 연결 시 디스코드 「감시 시작」을 이미 보냈으면 그 ymd */
+  let watcherStartDiscordSentYmd = /** @type {string | null} */ (null);
   let lastIdleLogAt = 0;
 
   const codes = loadStockCodesFromTxt();
@@ -42,6 +45,10 @@ async function main() {
   console.log(
     `[스케줄] ${TICK_MS / 1000}초 간격 장중 연결 · 15:40(KST) 알림 후 종료`
   );
+  console.log("[스케줄] 시간 기준: Asia/Seoul (KST) — 서버 OS 타임존과 무관");
+  console.log(
+    `[스케줄] 프로그램 시작 시각(KST): ${formatKstDateTime(getKstNow())}`
+  );
 
   /** @returns {Promise<void>} */
   async function tickOnce() {
@@ -57,6 +64,7 @@ async function main() {
       }
       clearProgramTradeWatchMap();
       closeRitualDoneYmd = null;
+      watcherStartDiscordSentYmd = null;
       cachedApprovalKey = null;
       lastCalendarYmd = ymd;
       console.log(`[스케줄] KST 영업일자 변경: ${ymd} (상태 초기화)`);
@@ -66,7 +74,9 @@ async function main() {
 
     if (isMarketCloseTickAt(now) && !todayCloseDone) {
       const msg =
-        `[프로그램 감시] 정규장 종료(KST 15:40)·감시를 종료합니다. 내일 장중에 재연결됩니다.\n종목 수: ${stockList.length}`;
+        `[프로그램 감시] 정규장 종료(KST 15:40)·감시를 종료합니다. 내일 장중에 재연결됩니다.\n현재 시각(KST): ${formatKstDateTime(
+          now
+        )}`;
       console.log(msg);
       await sendDiscordAlert(msg);
 
@@ -114,7 +124,14 @@ async function main() {
         },
       });
       disconnectRealtime = disconnect;
-      console.log("[스케줄] 장중 프로그램 감시 WebSocket 연결");
+      const kstNow = formatKstDateTime(now);
+      console.log(`[스케줄] 장중 프로그램 감시 WebSocket 연결 · KST ${kstNow}`);
+      if (watcherStartDiscordSentYmd !== ymd) {
+        watcherStartDiscordSentYmd = ymd;
+        await sendDiscordAlert(
+          `[감시 시작] 시총 1조 이상 ${stockList.length}개 종목 모니터링 가동\n현재 시각(KST): ${kstNow}`
+        );
+      }
     }
   }
 

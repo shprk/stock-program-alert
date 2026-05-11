@@ -50,6 +50,25 @@ export function getYmdKst(date) {
 }
 
 /**
+ * 로그·알림용 KST 시각 문자열.
+ * @param {Date} date
+ * @returns {string}
+ */
+export function formatKstDateTime(date) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: SEOUL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+/**
  * KST 기준 주말(토·일).
  * @param {Date} date
  * @returns {boolean}
