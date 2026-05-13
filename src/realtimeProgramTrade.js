@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import axios from "axios";
 import dotenv from "dotenv";
 import { stockLabelForAlert } from "./kisStockLookup.js";
+import { formatKstTimeOnly, getKstNow } from "./marketSchedule.js";
 
 dotenv.config();
 
@@ -102,9 +103,10 @@ async function handleProgramTrade(parsed) {
       alerted50: false,
     });
 
+    const kstTime = formatKstTimeOnly(getKstNow());
     const message = `[감시 시작] ${displayLabel}: 순매도 ${Math.abs(
       netBuyQty
-    ).toLocaleString("ko-KR")}주 기록`;
+    ).toLocaleString("ko-KR")}주 기록\n${kstTime} (KST)`;
 
     console.log(message);
     await sendDiscordAlert(message);

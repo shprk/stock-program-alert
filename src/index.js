@@ -4,9 +4,11 @@ import { stockNamesTxtPathHint } from "./stockNamesTxt.js";
 import {
   formatKstDateTime,
   getKstNow,
+  getKstSaturdayYmdForWeekendBundle,
   getYmdKst,
   isMarketCloseTickAt,
   isMarketOpenAt,
+  isWeekend,
 } from "./marketSchedule.js";
 import { loadStockCodesFromTxt, toWatchStockList } from "./stockNumberTxt.js";
 import {
@@ -29,6 +31,8 @@ async function main() {
   let cachedApprovalKey = /** @type {string | null} */ (null);
   /** 해당 KST 영업일 ymd에 장중 첫 연결 시 디스코드 「감시 시작」을 이미 보냈으면 그 ymd */
   let watcherStartDiscordSentYmd = /** @type {string | null} */ (null);
+  /** 주말(토+일) 묶음당 Discord 「주말 휴식」 1회 — 해당 주말의 토요일 KST ymd */
+  let lastWeekendDiscordBundleYmd = /** @type {string | null} */ (null);
   let lastIdleLogAt = 0;
 
   const codes = loadStockCodesFromTxt();
@@ -96,7 +100,25 @@ async function main() {
       const t = Date.now();
       if (t - lastIdleLogAt >= IDLE_LOG_MS) {
         lastIdleLogAt = t;
-        console.log("[스케줄] 장외·대기중 (연결 안 함)");
+        if (isWeekend(now)) {
+          console.log("[스케줄] 주말이므로 감시를 쉽니다. (연결 안 함)");
+        } else {
+          console.log("[스케줄] 장외·대기중 (연결 안 함)");
+        }
+      }
+      if (isWeekend(now)) {
+        const bundle = getKstSaturdayYmdForWeekendBundle(now);
+        if (
+          bundle &&
+          lastWeekendDiscordBundleYmd !== bundle
+        ) {
+          await sendDiscordAlert(
+            `[프로그램 감시] 주말이므로 감시를 쉽니다.\n현재 시각(KST): ${formatKstDateTime(
+              now
+            )}`
+          );
+          lastWeekendDiscordBundleYmd = bundle;
+        }
       }
       return;
     }

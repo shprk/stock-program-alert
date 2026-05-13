@@ -69,6 +69,16 @@ export function formatKstDateTime(date) {
 }
 
 /**
+ * KST 시각만 `HH:mm:ss` (24시간).
+ * @param {Date} date
+ * @returns {string} 예: 09:30:05
+ */
+export function formatKstTimeOnly(date) {
+  const { hour, minute, second } = getKstWallClock(date);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+}
+
+/**
  * KST 기준 주말(토·일).
  * @param {Date} date
  * @returns {boolean}
@@ -76,6 +86,22 @@ export function formatKstDateTime(date) {
 export function isWeekend(date) {
   const { weekday } = getKstWallClock(date);
   return weekday === "Sat" || weekday === "Sun";
+}
+
+/**
+ * 주말(토·일)을 하나로 묶을 때의 식별자: 해당 주말의 **토요일 KST ymd**.
+ * Discord 등 "주말 전체 1회"에 사용. 평일이면 null.
+ * @param {Date} date
+ * @returns {string | null} 예: 20260509
+ */
+export function getKstSaturdayYmdForWeekendBundle(date) {
+  if (!isWeekend(date)) return null;
+  const c = getKstWallClock(date);
+  if (c.weekday === "Sat") {
+    return `${c.year}${String(c.month).padStart(2, "0")}${String(c.day).padStart(2, "0")}`;
+  }
+  const prev = new Date(date.getTime() - 24 * 60 * 60 * 1000);
+  return getYmdKst(prev);
 }
 
 /**
