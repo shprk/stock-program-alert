@@ -89,6 +89,21 @@ export function isWeekend(date) {
 }
 
 /**
+ * KST 달력 기준 직전 영업일(토·일 제외) ymd.
+ *
+ * @param {Date} date
+ * @returns {string}
+ */
+export function getPreviousKstBusinessDayYmd(date) {
+  let cursor = date;
+  for (let i = 0; i < 14; i += 1) {
+    cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000);
+    if (!isWeekend(cursor)) return getYmdKst(cursor);
+  }
+  throw new Error("직전 KST 영업일을 찾지 못했습니다.");
+}
+
+/**
  * 주말(토·일)을 하나로 묶을 때의 식별자: 해당 주말의 **토요일 KST ymd**.
  * Discord 등 "주말 전체 1회"에 사용. 평일이면 null.
  * @param {Date} date

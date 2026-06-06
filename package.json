@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "build:names": "node src/buildStockNamesFile.js",
+    "build:stocks": "node src/buildStockNumberFromKrx.js",
     "simulate:pgm:live": "node src/simulateProgramTradeLive.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
