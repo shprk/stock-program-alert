@@ -26,7 +26,7 @@
 
 ## 시스템 동작 흐름
 
-<img width="1272" height="1666" alt="stock_program_alert_flowchart_spaced(수정본)" src="https://github.com/user-attachments/assets/896c618b-c98b-4975-a42f-8d9945e3bb74" />
+<img width="400" alt="stock_program_alert_flowchart_spaced(수정본)" src="https://github.com/user-attachments/assets/896c618b-c98b-4975-a42f-8d9945e3bb74" />
 
 1. KRX REST API로 일별매매를 조회하고, 시가총액 하한 이상 종목만 목록으로 남깁니다.
 2. 한국투자증권 REST API로 WebSocket 연결에 필요한 인증 키를 받습니다. 종목 한글명이 필요하면 같은 REST API의 종목검색으로 따로 만듭니다.
